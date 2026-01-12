@@ -89,30 +89,104 @@
 
         .prompt-section {
             margin-top: 30px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
         }
 
-        .prompt-label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 10px;
-            color: #333;
+        .prompt-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            margin-bottom: 0;
+            transition: all 0.2s ease;
+        }
+
+        .prompt-header:hover .prompt-title {
+            color: #0077FF;
+        }
+
+        .prompt-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            color: #666;
+            font-size: 0.95rem;
+            transition: color 0.2s ease;
+        }
+
+        .prompt-toggle {
+            color: #999;
+            font-size: 1rem;
+            transition: transform 0.3s ease, color 0.2s ease;
+        }
+
+        .prompt-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .prompt-header:hover .prompt-toggle {
+            color: #0077FF;
+        }
+
+        .prompt-content {
+            max-height: 500px;
+            overflow: hidden;
+            transition: max-height 0.3s ease, margin-top 0.3s ease;
+            margin-top: 15px;
+        }
+
+        .prompt-content.collapsed {
+            max-height: 0;
+            margin-top: 0;
         }
 
         .prompt-textarea {
             width: 100%;
-            min-height: 120px;
+            min-height: 180px;
             padding: 15px;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
-            font-size: 0.95rem;
-            font-family: inherit;
+            font-size: 0.9rem;
+            font-family: 'Courier New', monospace;
             resize: vertical;
-            transition: border-color 0.3s;
+            transition: all 0.3s;
+            line-height: 1.5;
+            background: #ffffff;
         }
 
         .prompt-textarea:focus {
             outline: none;
             border-color: #0077FF;
+            box-shadow: 0 0 0 3px rgba(0, 119, 255, 0.1);
+        }
+
+        .prompt-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .button-secondary {
+            background: #ffffff;
+            color: #666;
+            border: 1px solid #d0d0d0;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .button-secondary:hover {
+            background: #f5f5f5;
+            border-color: #0077FF;
+            color: #0077FF;
         }
 
         .button {
@@ -284,6 +358,28 @@
                 </div>
                 <input type="file" id="fileInput" class="file-input" accept=".mp4,.webm">
 
+                <div class="prompt-section">
+                    <div class="prompt-header" id="promptHeader">
+                        <div class="prompt-title">
+                            <span>Настройки промпта</span>
+                            <span style="color: #999; font-size: 0.85rem; font-weight: normal;">(опционально)</span>
+                        </div>
+                        <span class="prompt-toggle collapsed" id="promptToggle">▼</span>
+                    </div>
+                    <div class="prompt-content collapsed" id="promptContent">
+                        <textarea
+                            class="prompt-textarea"
+                            id="systemPrompt"
+                            placeholder="Загрузка промпта..."
+                        ></textarea>
+                        <div class="prompt-actions">
+                            <button class="button-secondary" id="resetPromptButton">
+                                Сбросить к умолчанию
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="actions" style="margin-top: 30px;">
                     <button class="button" id="uploadButton" disabled>
                         Загрузить и обработать
@@ -325,6 +421,8 @@
         // Глобальные переменные
         let currentTaskId = null;
         let selectedFile = null;
+        let defaultPrompt = '';
+        let currentPrompt = '';
         const API_BASE = '';
 
         // Элементы DOM
@@ -339,6 +437,45 @@
         const summaryText = document.getElementById('summaryText');
         const copyButton = document.getElementById('copyButton');
         const newTaskButton = document.getElementById('newTaskButton');
+        const promptHeader = document.getElementById('promptHeader');
+        const promptToggle = document.getElementById('promptToggle');
+        const promptContent = document.getElementById('promptContent');
+        const systemPrompt = document.getElementById('systemPrompt');
+        const resetPromptButton = document.getElementById('resetPromptButton');
+
+        // Загрузка системного промпта при старте
+        async function loadSystemPrompt() {
+            try {
+                const response = await fetch(`${API_BASE}/api/prompt`);
+                const data = await response.json();
+                defaultPrompt = data.prompt;
+                currentPrompt = defaultPrompt;
+                systemPrompt.value = defaultPrompt;
+            } catch (error) {
+                console.error('Ошибка загрузки промпта:', error);
+                systemPrompt.placeholder = 'Ошибка загрузки промпта';
+            }
+        }
+
+        // Вызываем загрузку промпта при старте
+        loadSystemPrompt();
+
+        // Переключение видимости промпта
+        promptHeader.addEventListener('click', () => {
+            promptContent.classList.toggle('collapsed');
+            promptToggle.classList.toggle('collapsed');
+        });
+
+        // Сброс промпта к умолчанию
+        resetPromptButton.addEventListener('click', () => {
+            systemPrompt.value = defaultPrompt;
+            currentPrompt = defaultPrompt;
+        });
+
+        // Отслеживание изменений промпта
+        systemPrompt.addEventListener('input', () => {
+            currentPrompt = systemPrompt.value;
+        });
 
 
         // Обработка drag & drop
@@ -398,6 +535,11 @@
 
             const formData = new FormData();
             formData.append('file', selectedFile);
+            
+            // Добавляем промпт, если он был изменен
+            if (currentPrompt && currentPrompt !== defaultPrompt) {
+                formData.append('system_prompt', currentPrompt);
+            }
 
             try {
                 uploadButton.disabled = true;
