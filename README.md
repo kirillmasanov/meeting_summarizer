@@ -32,11 +32,22 @@
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
+Добавьте uv в PATH:
+Для Bash:
+```bash
+echo 'export PATH="$HOME/.uv/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+Для Zsh:
+```bash
+echo 'export PATH="$HOME/.uv/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
 
 **Установка проекта:**
 ```bash
 git clone https://github.com/kirillmasanov/meeting-summarizer
-cd meeting_summarizer
+cd meeting-summarizer
 
 # Создание виртуального окружения и установка зависимостей
 uv sync
@@ -185,13 +196,13 @@ uv run uvicorn app:app --reload
 
 ```bash
 # Сборка и запуск контейнера
-docker-compose up -d
+docker compose up -d
 
 # Просмотр логов
-docker-compose logs -f
+docker compose logs -f
 
 # Остановка контейнера
-docker-compose down
+docker compose down
 ```
 
 Приложение будет доступно по адресу: **http://localhost:8000**
@@ -266,29 +277,29 @@ meeting_summarizer/
 
 - **Автоматическая установка ffmpeg** - не требуется устанавливать вручную
 - **Изолированное окружение** - все зависимости внутри контейнера
-- **Простое развертывание** - один файл `.env` и команда `docker-compose up`
+- **Простое развертывание** - один файл `.env` и команда `docker compose up`
 - **Персистентность данных** - директории `uploads/` и `temp/` монтируются как volumes
 
 ### Управление контейнером
 
 ```bash
 # Пересборка образа после изменений
-docker-compose build
+docker compose build
 
 # Запуск в фоновом режиме
-docker-compose up -d
+docker compose up -d
 
 # Просмотр логов
-docker-compose logs -f meeting-summarizer
+docker compose logs -f meeting-summarizer
 
 # Остановка без удаления контейнера
-docker-compose stop
+docker compose stop
 
 # Остановка и удаление контейнера
-docker-compose down
+docker compose down
 
 # Полная очистка (включая volumes)
-docker-compose down -v
+docker compose down -v
 ```
 
 ### Настройка портов
@@ -301,7 +312,7 @@ SERVER_PORT=3000
 
 Затем пересоздайте контейнер:
 ```bash
-docker-compose up -d --force-recreate
+docker compose up -d --force-recreate
 ```
 
 ## 🔗 Полезные ссылки
