@@ -420,7 +420,7 @@ yc iam service-account delete $SA_ID
 
 ### Документация Yandex Cloud
 
-- [Yandex SpeechKit API v3](https://cloud.yandex.ru/docs/speechkit/)
+- [Yandex SpeechKit](https://cloud.yandex.ru/docs/speechkit/)
 - [Yandex AI Studio Model Gallery](https://yandex.cloud/ru/docs/ai-studio/concepts/generation/models)
 - [Управление доступом в Yandex Cloud](https://cloud.yandex.ru/docs/iam/)
 - [Сервисные аккаунты](https://cloud.yandex.ru/docs/iam/concepts/users/service-accounts)
@@ -460,4 +460,4 @@ yc iam service-account delete $SA_ID
 - Длительности обрабатываемых аудиозаписей (SpeechKit API)
 - Объема текста для суммаризации (AI Studio Model Gallery)
 
-Актуальные цены см. на [странице тарифов Yandex Cloud](https://cloud.yandex.ru/prices).
+Актуальные цены см. на странице тарифов [Yandex SpeechKit](https://yandex.cloud/ru/docs/speechkit/pricing) и [Yandex AI Studio](https://yandex.cloud/ru/docs/ai-studio/pricing).
