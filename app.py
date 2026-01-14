@@ -51,7 +51,7 @@ FOLDER_ID = os.getenv("FOLDER_ID")
 LLM_MODEL = os.getenv("LLM_MODEL", "qwen3-235b-a22b-fp8/latest")
 SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))
 MAX_FILE_SIZE = 1024 * 1024 * 1024  # 1GB
-MAX_VIDEO_DURATION = 3600  # 1 час в секундах
+MAX_VIDEO_DURATION = 14400  # 4 часа в секундах
 UPLOAD_TIMEOUT = 600  # 10 минут
 STATUS_CHECK_TIMEOUT = 30  # 30 секунд
 RESULT_TIMEOUT = 60  # 1 минута
@@ -497,7 +497,7 @@ async def upload_video(
                 video_path.unlink(missing_ok=True)
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Длительность видео ({duration/60:.1f} мин) превышает 1 час. Максимальная длительность: 60 минут"
+                    detail=f"Длительность видео ({duration/60:.1f} мин) превышает 4 часа. Максимальная длительность: 240 минут"
                 )
         except RuntimeError as e:
             video_path.unlink(missing_ok=True)
