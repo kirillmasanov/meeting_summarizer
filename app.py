@@ -330,7 +330,7 @@ def transcribe_audio(audio_file_path: Path, system_prompt: str, task_id: str = N
             continue
     
     full_transcription = " ".join(transcription_parts)
-    
+
     # Конвертируем JSON в текст если нужно
     if summary:
         summary_html = json_to_html(summary)
@@ -355,6 +355,10 @@ def json_to_html(text: str) -> str:
     
     try:
         data = json.loads(json_str)
+        
+        # Если это объект с ключом "text", извлекаем его значение
+        if isinstance(data, dict) and "text" in data:
+            return data["text"]
         
         def format_value(value, indent=0):
             """Рекурсивное форматирование значений"""
