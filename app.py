@@ -653,6 +653,25 @@ async def check_session(session_id: Optional[str] = Cookie(None)):
     }
 
 
+@app.post("/api/session/logout")
+async def logout_session(
+    response: Response,
+    session_id: Optional[str] = Cookie(None)
+):
+    """Удаление текущей сессии (выход)"""
+    if session_id and session_id in sessions:
+        del sessions[session_id]
+        logger.info(f"Сессия {session_id} удалена пользователем")
+    
+    # Удаляем cookie
+    response.delete_cookie(key="session_id")
+    
+    return {
+        "message": "Сессия удалена",
+        "requires_keys": not (DEFAULT_API_KEY and DEFAULT_FOLDER_ID)
+    }
+
+
 @app.post("/api/upload")
 async def upload_video(
     background_tasks: BackgroundTasks,

@@ -436,6 +436,29 @@
             font-weight: 500;
             color: #333;
         }
+
+        /* Стили для кнопки выхода */
+        .logout-button {
+            background: #ffffff;
+            color: #ff4444;
+            border: 1px solid #ff4444;
+            padding: 12px 32px;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: none;
+        }
+
+        .logout-button:hover {
+            background: #ff4444;
+            color: #ffffff;
+        }
+
+        .logout-button.visible {
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
@@ -481,6 +504,9 @@
                 <div class="actions" style="margin-top: 30px;">
                     <button class="button" id="uploadButton" disabled>
                         Загрузить и обработать
+                    </button>
+                    <button class="logout-button" id="logoutButton">
+                        Выйти
                     </button>
                 </div>
 
@@ -554,11 +580,17 @@
                 if (!data.has_session && data.requires_keys) {
                     // Показываем форму ввода ключей
                     showApiKeysForm();
+                    logoutButton.classList.remove('visible');
                 } else if (!data.has_session) {
                     // Создаем сессию с дефолтными ключами
                     await createSession();
+                    logoutButton.classList.remove('visible');
                 } else {
                     sessionId = data.session_id;
+                    // Показываем кнопку выхода только если используются пользовательские ключи
+                    if (!hasDefaultKeys) {
+                        logoutButton.classList.add('visible');
+                    }
                 }
             } catch (error) {
                 console.error('Ошибка проверки сессии:', error);
@@ -688,6 +720,9 @@
                 document.querySelector('.prompt-section').style.display = 'block';
                 document.querySelector('.actions').style.display = 'flex';
                 
+                // Показываем кнопку выхода
+                logoutButton.classList.add('visible');
+                
                 hideError();
             } catch (error) {
                 keysError.textContent = error.message;
@@ -719,6 +754,34 @@
 
         // Вызываем инициализацию при старте
         init();
+
+        // Обработчик кнопки "Выйти"
+        const logoutButton = document.getElementById('logoutButton');
+        
+        logoutButton.addEventListener('click', async () => {
+            if (!confirm('Вы уверены, что хотите выйти? Текущая сессия будет завершена.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/session/logout`, {
+                    method: 'POST',
+                    credentials: 'include'  // Важно для отправки cookies
+                });
+                
+                if (response.ok) {
+                    // Перезагружаем страницу для повторного ввода ключей
+                    window.location.reload();
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('Logout error:', errorData);
+                    showError(`Ошибка при выходе: ${errorData.detail || response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Ошибка выхода:', error);
+                showError(`Ошибка при выходе из сессии: ${error.message}`);
+            }
+        });
 
         // Переключение видимости промпта
         promptHeader.addEventListener('click', () => {
@@ -865,8 +928,6 @@
 
         // Обновление прогресса
         function updateProgress(data) {
-            console.log('Progress update:', data); // Для отладки
-
             const stages = {
                 'upload': {
                     icon: '📤',
