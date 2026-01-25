@@ -338,6 +338,104 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* Стили для tooltip подсказок */
+        .help-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            color: #666;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: help;
+            margin-left: 6px;
+            position: relative;
+            transition: all 0.2s ease;
+            border: 1px solid #d0d0d0;
+        }
+
+        .help-icon:hover {
+            background: #d0d0d0;
+            color: #333;
+            border-color: #999;
+            transform: scale(1.05);
+        }
+
+        .tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-8px);
+            background: #2c2c2c;
+            color: #f5f5f5;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            pointer-events: none;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: #2c2c2c;
+        }
+
+        .help-icon:hover .tooltip,
+        .tooltip:hover {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(-12px);
+            pointer-events: auto;
+        }
+
+        /* Добавляем невидимый мост между иконкой и tooltip */
+        .help-icon::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            height: 20px;
+            z-index: 999;
+        }
+
+        .tooltip a {
+            color: #FFD54F;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .tooltip a:hover {
+            color: #FFC107;
+            text-decoration: underline;
+        }
+
+        .field-label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -354,7 +452,7 @@
                     <div class="drop-zone-icon">📁</div>
                     <div class="drop-zone-text">Перетащите видео файл сюда</div>
                     <div class="drop-zone-hint">или нажмите для выбора файла</div>
-                    <div class="drop-zone-hint" style="margin-top: 10px;">Поддерживаются: MP4, WebM (макс. 1GB, 1 час)</div>
+                    <div class="drop-zone-hint" style="margin-top: 10px;">Поддерживаются: MP4, WebM (макс. 1GB, 4 часа)</div>
                 </div>
                 <input type="file" id="fileInput" class="file-input" accept=".mp4,.webm">
 
@@ -423,6 +521,8 @@
         let selectedFile = null;
         let defaultPrompt = '';
         let currentPrompt = '';
+        let sessionId = null;
+        let hasDefaultKeys = false;
         const API_BASE = '';
 
         // Элементы DOM
@@ -443,6 +543,158 @@
         const systemPrompt = document.getElementById('systemPrompt');
         const resetPromptButton = document.getElementById('resetPromptButton');
 
+        // Проверка сессии при загрузке страницы
+        async function checkSession() {
+            try {
+                const response = await fetch(`${API_BASE}/api/session/check`);
+                const data = await response.json();
+                
+                hasDefaultKeys = data.has_default_keys;
+                
+                if (!data.has_session && data.requires_keys) {
+                    // Показываем форму ввода ключей
+                    showApiKeysForm();
+                } else if (!data.has_session) {
+                    // Создаем сессию с дефолтными ключами
+                    await createSession();
+                } else {
+                    sessionId = data.session_id;
+                }
+            } catch (error) {
+                console.error('Ошибка проверки сессии:', error);
+                showError('Ошибка подключения к серверу');
+            }
+        }
+
+        // Создание сессии
+        async function createSession(apiKey = null, folderId = null) {
+            try {
+                const formData = new FormData();
+                if (apiKey) formData.append('api_key', apiKey);
+                if (folderId) formData.append('folder_id', folderId);
+                
+                const response = await fetch(`${API_BASE}/api/session`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Ошибка создания сессии');
+                }
+                
+                const data = await response.json();
+                sessionId = data.session_id;
+                hasDefaultKeys = data.has_default_keys;
+                
+                return true;
+            } catch (error) {
+                console.error('Ошибка создания сессии:', error);
+                throw error;
+            }
+        }
+
+        // Показ формы ввода API ключей
+        function showApiKeysForm() {
+            const formHtml = `
+                <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                    <h3 style="margin: 0 0 20px 0; color: #856404;">Настройка доступа</h3>
+                    <div style="margin-bottom: 15px;">
+                        <div class="field-label">
+                            <span>YANDEX_API_KEY:</span>
+                            <span class="help-icon">
+                                ?
+                                <span class="tooltip">
+                                    API ключ сервисного аккаунта<br>
+                                    <a href="https://cloud.yandex.ru/docs/iam/operations/api-key/create" target="_blank">Как создать API ключ →</a>
+                                </span>
+                            </span>
+                        </div>
+                        <input type="text" id="apiKeyInput" placeholder="AQVNxxxxxxxxxx..."
+                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <div class="field-label">
+                            <span>FOLDER_ID:</span>
+                            <span class="help-icon">
+                                ?
+                                <span class="tooltip">
+                                    ID каталога в Yandex Cloud<br>
+                                    <a href="https://cloud.yandex.ru/docs/resource-manager/operations/folder/get-id" target="_blank">Как узнать Folder ID →</a>
+                                </span>
+                            </span>
+                        </div>
+                        <input type="text" id="folderIdInput" placeholder="b1gxxxxxxxxxx..."
+                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">
+                    </div>
+                    <button onclick="submitApiKeys()" class="button" style="width: 100%;">
+                        Сохранить и продолжить
+                    </button>
+                    <div id="keysError" style="display: none; margin-top: 10px; padding: 10px; background: #fee; color: #c33; border-radius: 4px;"></div>
+                </div>
+            `;
+            
+            const container = document.querySelector('.upload-section');
+            container.insertAdjacentHTML('afterbegin', formHtml);
+            
+            // Скрываем форму загрузки до ввода ключей
+            dropZone.style.display = 'none';
+            document.querySelector('.prompt-section').style.display = 'none';
+            document.querySelector('.actions').style.display = 'none';
+        }
+
+        // Отправка API ключей
+        async function submitApiKeys() {
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            const folderId = document.getElementById('folderIdInput').value.trim();
+            const keysError = document.getElementById('keysError');
+            const submitButton = event.target;
+            
+            if (!apiKey || !folderId) {
+                keysError.textContent = 'Пожалуйста, заполните оба поля';
+                keysError.style.display = 'block';
+                return;
+            }
+            
+            try {
+                // Показываем индикатор загрузки
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner"></span> Проверка ключей...';
+                keysError.style.display = 'none';
+                
+                // Валидируем ключи
+                const formData = new FormData();
+                formData.append('api_key', apiKey);
+                formData.append('folder_id', folderId);
+                
+                const validateResponse = await fetch(`${API_BASE}/api/validate-keys`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!validateResponse.ok) {
+                    const error = await validateResponse.json();
+                    throw new Error(error.detail || 'Ошибка валидации ключей');
+                }
+                
+                // Создаем сессию с валидированными ключами
+                await createSession(apiKey, folderId);
+                
+                // Удаляем форму и показываем интерфейс загрузки
+                document.querySelector('.upload-section > div').remove();
+                dropZone.style.display = 'block';
+                document.querySelector('.prompt-section').style.display = 'block';
+                document.querySelector('.actions').style.display = 'flex';
+                
+                hideError();
+            } catch (error) {
+                keysError.textContent = error.message;
+                keysError.style.display = 'block';
+                submitButton.disabled = false;
+                submitButton.textContent = 'Сохранить и продолжить';
+            }
+        }
+
         // Загрузка системного промпта при старте
         async function loadSystemPrompt() {
             try {
@@ -457,8 +709,14 @@
             }
         }
 
-        // Вызываем загрузку промпта при старте
-        loadSystemPrompt();
+        // Инициализация при загрузке страницы
+        async function init() {
+            await checkSession();
+            await loadSystemPrompt();
+        }
+
+        // Вызываем инициализацию при старте
+        init();
 
         // Переключение видимости промпта
         promptHeader.addEventListener('click', () => {
@@ -542,6 +800,11 @@
             }
 
             try {
+                // Проверяем наличие сессии
+                if (!sessionId && !hasDefaultKeys) {
+                    showError('Необходимо ввести API ключи');
+                    return;
+                }
                 uploadButton.disabled = true;
                 uploadButton.innerHTML = '<span class="spinner"></span> Загрузка...';
 
