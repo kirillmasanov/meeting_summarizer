@@ -611,6 +611,7 @@
                             </span>
                         </div>
                         <input type="text" id="apiKeyInput" placeholder="AQVNxxxxxxxxxx..."
+                            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
                             style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">
                     </div>
                     <div style="margin-bottom: 15px;">
@@ -625,6 +626,7 @@
                             </span>
                         </div>
                         <input type="text" id="folderIdInput" placeholder="b1gxxxxxxxxxx..."
+                            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
                             style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">
                     </div>
                     <button onclick="submitApiKeys()" class="button" style="width: 100%;">
@@ -921,8 +923,28 @@
                 const summaryElement = document.getElementById('summaryText');
                 const textContent = summaryElement.textContent;
                 
-                // Копируем в буфер обмена
-                await navigator.clipboard.writeText(textContent);
+                // Пробуем современный API (работает только на HTTPS/localhost)
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(textContent);
+                } else {
+                    // Fallback для HTTP: используем старый метод с textarea
+                    const textarea = document.createElement('textarea');
+                    textarea.value = textContent;
+                    textarea.style.position = 'fixed';
+                    textarea.style.left = '-999999px';
+                    textarea.style.top = '-999999px';
+                    document.body.appendChild(textarea);
+                    textarea.focus();
+                    textarea.select();
+                    
+                    try {
+                        document.execCommand('copy');
+                        textarea.remove();
+                    } catch (err) {
+                        textarea.remove();
+                        throw new Error('Не удалось скопировать текст');
+                    }
+                }
                 
                 // Показываем уведомление
                 const originalText = copyButton.innerHTML;
@@ -931,14 +953,16 @@
                 
                 setTimeout(() => {
                     copyButton.innerHTML = originalText;
-                    copyButton.style.background = '#0077FF';
+                    copyButton.style.background = '#FFCC00';
                 }, 2000);
                 
             } catch (error) {
                 console.error('Ошибка копирования:', error);
                 copyButton.innerHTML = '✗ Ошибка';
+                copyButton.style.background = '#f44336';
                 setTimeout(() => {
                     copyButton.innerHTML = 'Копировать';
+                    copyButton.style.background = '#FFCC00';
                 }, 2000);
             }
         });
