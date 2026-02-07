@@ -572,7 +572,9 @@
         // Проверка сессии при загрузке страницы
         async function checkSession() {
             try {
-                const response = await fetch(`${API_BASE}/api/session/check`);
+                const response = await fetch(`${API_BASE}/api/session/check`, {
+                    credentials: 'include'
+                });
                 const data = await response.json();
                 
                 hasDefaultKeys = data.has_default_keys;
@@ -607,7 +609,8 @@
                 
                 const response = await fetch(`${API_BASE}/api/session`, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    credentials: 'include'
                 });
                 
                 if (!response.ok) {
@@ -703,7 +706,8 @@
                 
                 const validateResponse = await fetch(`${API_BASE}/api/validate-keys`, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    credentials: 'include'
                 });
                 
                 if (!validateResponse.ok) {
@@ -735,7 +739,9 @@
         // Загрузка системного промпта при старте
         async function loadSystemPrompt() {
             try {
-                const response = await fetch(`${API_BASE}/api/prompt`);
+                const response = await fetch(`${API_BASE}/api/prompt`, {
+                    credentials: 'include'
+                });
                 const data = await response.json();
                 defaultPrompt = data.prompt;
                 currentPrompt = defaultPrompt;
@@ -748,7 +754,9 @@
 
         // Инициализация при загрузке страницы
         async function init() {
+            // Сначала проверяем/создаем сессию
             await checkSession();
+            // Только после успешной инициализации сессии загружаем промпт
             await loadSystemPrompt();
         }
 
@@ -875,7 +883,8 @@
 
                 const response = await fetch(`${API_BASE}/api/upload`, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    credentials: 'include'
                 });
 
                 if (!response.ok) {
@@ -905,7 +914,9 @@
             if (!currentTaskId) return;
 
             try {
-                const response = await fetch(`${API_BASE}/api/status/${currentTaskId}`);
+                const response = await fetch(`${API_BASE}/api/status/${currentTaskId}`, {
+                    credentials: 'include'
+                });
                 const data = await response.json();
 
                 updateProgress(data);
@@ -962,7 +973,9 @@
         // Отображение результатов
         async function showResults() {
             try {
-                const response = await fetch(`${API_BASE}/api/result/${currentTaskId}`);
+                const response = await fetch(`${API_BASE}/api/result/${currentTaskId}`, {
+                    credentials: 'include'
+                });
                 const data = await response.json();
 
                 // Отображаем резюме как простой текст
