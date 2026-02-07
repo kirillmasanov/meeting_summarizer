@@ -47,7 +47,7 @@ logging.getLogger("uvicorn.access").setLevel(logging.INFO)
 load_dotenv()
 
 # Константы
-DEFAULT_API_KEY = os.getenv("YANDEX_API_KEY")
+DEFAULT_API_KEY = os.getenv("API_KEY")
 DEFAULT_FOLDER_ID = os.getenv("FOLDER_ID")
 LLM_MODEL = os.getenv("LLM_MODEL", "qwen3-235b-a22b-fp8/latest")
 SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))

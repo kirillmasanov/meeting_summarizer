@@ -144,7 +144,7 @@ API_KEY=$(yc iam api-key create --service-account-id $SA_ID --format json | jq -
 Создайте файл `.env` в корне проекта:
 
 ```env
-YANDEX_API_KEY=your_api_key_here
+API_KEY=your_api_key_here
 FOLDER_ID=your_folder_id_here
 LLM_MODEL=qwen3-235b-a22b-fp8/latest
 SERVER_PORT=8000
@@ -154,10 +154,10 @@ SERVER_PORT=8000
 
 ##### Способ 2: Через веб-интерфейс
 
-Если переменные `YANDEX_API_KEY` и `FOLDER_ID` не заданы в `.env`, при первом открытии приложения появится форма для ввода ключей:
+Если переменные `API_KEY` и `FOLDER_ID` не заданы в `.env`, при первом открытии приложения появится форма для ввода ключей:
 
 1. Откройте приложение в браузере
-2. Введите `YANDEX_API_KEY` и `FOLDER_ID` в форму
+2. Введите `API_KEY` и `FOLDER_ID` в форму
 3. Нажмите "Сохранить и продолжить"
 4. Ключи будут валидированы и сохранены в вашей сессии
 
@@ -176,7 +176,7 @@ API_KEY=$(yc iam api-key create --service-account-id $SA_ID --format json | jq -
 
 # Создание .env файла
 cat > .env << EOF
-YANDEX_API_KEY=$API_KEY
+API_KEY=$API_KEY
 FOLDER_ID=$FOLDER_ID
 LLM_MODEL=qwen3-235b-a22b-fp8/latest
 SERVER_PORT=8000
@@ -244,7 +244,7 @@ docker compose down
 1. Откройте **http://localhost:8000** в браузере
 2. **Если API ключ и ID каталога не заданы в `.env`:**
    - Появится форма для ввода
-   - Введите `YANDEX_API_KEY` и `FOLDER_ID`
+   - Введите `API_KEY` и `FOLDER_ID`
    - Нажмите "Сохранить и продолжить"
    - Ключи будут автоматически валидированы
 3. **Если API ключ и ID каталога заданы в `.env`:**
@@ -312,12 +312,12 @@ meeting_summarizer/
 
 Приложение поддерживает следующие переменные окружения в файле `.env`:
 
-- `YANDEX_API_KEY` (опционально*) - API ключ для Yandex Cloud
+- `API_KEY` (опционально*) - API ключ для Yandex Cloud
 - `FOLDER_ID` (опционально*) - ID каталога в Yandex Cloud
 - `LLM_MODEL` (опционально, по умолчанию: `qwen3-235b-a22b-fp8/latest`) - модель для суммаризации
 - `SERVER_PORT` (опционально, по умолчанию: `8000`) - порт для запуска сервера
 
-**\*Примечание:** Если `YANDEX_API_KEY` и `FOLDER_ID` не заданы в `.env`, они могут быть введены через веб-интерфейс при первом использовании.
+**\*Примечание:** Если `API_KEY` и `FOLDER_ID` не заданы в `.env`, они могут быть введены через веб-интерфейс при первом использовании.
 
 ### Архитектура сессий
 

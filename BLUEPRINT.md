@@ -249,7 +249,7 @@ echo "API Key: $API_KEY"
 
 ```bash
 cat > .env << EOF
-YANDEX_API_KEY=<ваш_api_ключ>
+API_KEY=<ваш_api_ключ>
 FOLDER_ID=<ваш_folder_id>
 LLM_MODEL=qwen3-235b-a22b-fp8/latest
 SERVER_PORT=8000
@@ -264,7 +264,7 @@ SA_ID=$(yc iam service-account get meeting-summarizer-sa --format json | jq -r '
 API_KEY=$(yc iam api-key create --service-account-id $SA_ID --format json | jq -r '.secret')
 
 cat > .env << EOF
-YANDEX_API_KEY=$API_KEY
+API_KEY=$API_KEY
 FOLDER_ID=$FOLDER_ID
 LLM_MODEL=qwen3-235b-a22b-fp8/latest
 SERVER_PORT=8000
@@ -275,12 +275,12 @@ echo "Файл .env создан успешно"
 
 #### Способ 2: Через веб-интерфейс
 
-Если переменные `YANDEX_API_KEY` и `FOLDER_ID` не заданы в `.env`, вы можете ввести их через веб-интерфейс:
+Если переменные `API_KEY` и `FOLDER_ID` не заданы в `.env`, вы можете ввести их через веб-интерфейс:
 
 1. Запустите приложение без `.env` файла
 2. Откройте приложение в браузере
 3. При первом открытии появится форма для ввода API ключей
-4. Введите `YANDEX_API_KEY` и `FOLDER_ID`
+4. Введите `API_KEY` и `FOLDER_ID`
 5. Нажмите "Сохранить и продолжить"
 6. Ключи будут автоматически валидированы и сохранены в вашей сессии
 
@@ -323,7 +323,7 @@ docker compose ps
 - У виртуальной машины есть публичный IP-адрес (если требуется доступ из интернета)
 
 Вы должны увидеть веб-интерфейс с:
-- **Если API ключи НЕ заданы в `.env`:** Форму для ввода `YANDEX_API_KEY` и `FOLDER_ID`
+- **Если API ключи НЕ заданы в `.env`:** Форму для ввода `API_KEY` и `FOLDER_ID`
 - **Если API ключи заданы в `.env`:** Область для загрузки видеофайлов (drag-and-drop), раскрывающуюся секцию настроек промпта и кнопку "Загрузить и обработать"
 
 ---
@@ -344,7 +344,7 @@ docker compose ps
 
 1. Откройте приложение в браузере (см. раздел "Проверка работоспособности")
 2. Вы увидите форму для ввода API ключа и ID каталога
-3. Введите `YANDEX_API_KEY` и `FOLDER_ID`
+3. Введите `API_KEY` и `FOLDER_ID`
 4. Нажмите "Сохранить и продолжить"
 5. Ключи будут автоматически валидированы
 

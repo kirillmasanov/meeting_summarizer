@@ -7,7 +7,7 @@ services:
     ports:
       - "${SERVER_PORT:-8000}:8000"
     environment:
-      - YANDEX_API_KEY=${YANDEX_API_KEY}
+      - API_KEY=${API_KEY}
       - FOLDER_ID=${FOLDER_ID}
       - LLM_MODEL=${LLM_MODEL:-qwen3-235b-a22b-fp8/latest}
       - SERVER_PORT=8000
