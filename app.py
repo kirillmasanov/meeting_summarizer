@@ -476,7 +476,7 @@ async def process_video_task(task_id: str, video_path: Path, system_prompt: str)
             task.updated_at = datetime.now()
 
 
-@app.get("/healthcheck")
+@app.get("/health")
 async def healthcheck():
     return {
         "status": "ok",
