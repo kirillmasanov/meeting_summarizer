@@ -15,8 +15,9 @@ from pathlib import Path
 from typing import Dict, Optional
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Form, Cookie, Response, Request
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Form
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -47,9 +48,9 @@ logging.getLogger("uvicorn.access").setLevel(logging.INFO)
 load_dotenv()
 
 # Константы
-DEFAULT_API_KEY = os.getenv("API_KEY")
-DEFAULT_FOLDER_ID = os.getenv("FOLDER_ID")
-LLM_MODEL = os.getenv("LLM_MODEL", "qwen3-235b-a22b-fp8/latest")
+DEFAULT_API_KEY = os.getenv("YANDEX_API_KEY")
+DEFAULT_FOLDER_ID = os.getenv("YANDEX_FOLDER_ID")
+LLM_MODEL = os.getenv("YANDEX_CLOUD_MODEL", "qwen3-235b-a22b-fp8/latest")
 SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))
 MAX_FILE_SIZE = 1024 * 1024 * 1024  # 1GB
 MAX_VIDEO_DURATION = 14400  # 4 часа в секундах
@@ -57,7 +58,6 @@ UPLOAD_TIMEOUT = 600  # 10 минут
 STATUS_CHECK_TIMEOUT = 30  # 30 секунд
 RESULT_TIMEOUT = 60  # 1 минута
 POLL_INTERVAL = 5  # 5 секунд между проверками статуса
-SESSION_TTL = timedelta(minutes=30)  # TTL сессии
 
 # Логируем наличие дефолтных ключей
 if DEFAULT_API_KEY and DEFAULT_FOLDER_ID:
@@ -73,8 +73,18 @@ if not prompt_file.exists():
 with open(prompt_file, 'r', encoding='utf-8') as f:
     SYSTEM_PROMPT = f.read().strip()
 
+# Lifespan context manager для startup/shutdown событий
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    if not check_ffmpeg():
+        logger.warning("ffmpeg не найден в системе!")
+        logger.warning("Установите ffmpeg для работы приложения")
+    yield
+    # Shutdown (если нужно что-то делать при остановке)
+
 # Создаем FastAPI приложение
-app = FastAPI(title="Meeting Summarizer", version="1.0.0")
+app = FastAPI(title="Meeting Summarizer", version="1.0.0", lifespan=lifespan)
 
 # Настройка CORS
 app.add_middleware(
@@ -93,7 +103,7 @@ for directory in [UPLOAD_DIR, TEMP_DIR]:
     directory.mkdir(exist_ok=True)
 
 
-# Модели данных для сессий
+# Модели данных для задач
 @dataclass
 class TaskStatus:
     """Статус задачи обработки"""
@@ -107,84 +117,8 @@ class TaskStatus:
     filename: Optional[str] = None
 
 
-@dataclass
-class SessionData:
-    """Данные пользовательской сессии"""
-    session_id: str
-    api_key: str
-    folder_id: str
-    created_at: datetime = field(default_factory=datetime.now)
-    last_activity: datetime = field(default_factory=datetime.now)
-    tasks: Dict[str, TaskStatus] = field(default_factory=dict)
-
-
-# Хранилище сессий
-sessions: Dict[str, SessionData] = {}
-
-
-def cleanup_expired_sessions():
-    """Удаляет неактивные сессии"""
-    now = datetime.now()
-    expired = [
-        sid for sid, session in sessions.items()
-        if now - session.last_activity > SESSION_TTL
-    ]
-    for sid in expired:
-        logger.info(f"Удаление неактивной сессии: {sid}")
-        del sessions[sid]
-
-
-def get_or_create_session(session_id: Optional[str], api_key: Optional[str] = None, folder_id: Optional[str] = None) -> SessionData:
-    """Получает существующую сессию или создает новую"""
-    cleanup_expired_sessions()
-    
-    # Если session_id не передан, создаем новую сессию
-    if not session_id:
-        session_id = str(uuid.uuid4())
-        logger.info(f"Создание новой сессии: {session_id}")
-    
-    # Если сессия существует, обновляем время активности
-    if session_id in sessions:
-        session = sessions[session_id]
-        session.last_activity = datetime.now()
-        
-        # Обновляем ключи если переданы новые
-        if api_key:
-            session.api_key = api_key
-        if folder_id:
-            session.folder_id = folder_id
-            
-        return session
-    
-    # Создаем новую сессию
-    # Используем переданные ключи или дефолтные из env
-    final_api_key = api_key or DEFAULT_API_KEY
-    final_folder_id = folder_id or DEFAULT_FOLDER_ID
-    
-    if not final_api_key or not final_folder_id:
-        raise ValueError("API ключи не предоставлены и не найдены в переменных окружения")
-    
-    session = SessionData(
-        session_id=session_id,
-        api_key=final_api_key,
-        folder_id=final_folder_id
-    )
-    sessions[session_id] = session
-    logger.info(f"Создана новая сессия: {session_id}")
-    
-    return session
-
-
-def get_session(session_id: str) -> SessionData:
-    """Получает существующую сессию или выбрасывает ошибку"""
-    cleanup_expired_sessions()
-    
-    if session_id not in sessions:
-        raise HTTPException(status_code=401, detail="Сессия не найдена или истекла")
-    
-    session = sessions[session_id]
-    session.last_activity = datetime.now()
-    return session
+# Глобальное хранилище задач
+tasks: Dict[str, TaskStatus] = {}
 
 
 def check_ffmpeg() -> bool:
@@ -268,13 +202,13 @@ def extract_audio_from_video(
         raise RuntimeError(f"Ошибка извлечения аудио: {error_msg}")
 
 
-def update_task_timestamp(session_id: str, task_id: str):
+def update_task_timestamp(task_id: str):
     """Обновляет временную метку задачи"""
-    if session_id in sessions and task_id in sessions[session_id].tasks:
-        sessions[session_id].tasks[task_id].updated_at = datetime.now()
+    if task_id in tasks:
+        tasks[task_id].updated_at = datetime.now()
 
 
-def transcribe_audio(audio_file_path: Path, system_prompt: str, session: SessionData, task_id: str = None) -> dict:
+def transcribe_audio(audio_file_path: Path, system_prompt: str, task_id: str = None) -> dict:
     """Транскрибирует аудио файл через Yandex SpeechKit API v3"""
     # Используем MP3 для всех файлов
     audio_type = "MP3"
@@ -305,7 +239,7 @@ def transcribe_audio(audio_file_path: Path, system_prompt: str, session: Session
             "speakerLabeling": "SPEAKER_LABELING_DISABLED"
         },
         "summarization": {
-            "modelUri": f"gpt://{session.folder_id}/{LLM_MODEL}",
+            "modelUri": f"gpt://{DEFAULT_FOLDER_ID}/{LLM_MODEL}",
             "properties": [
                 {
                     "instruction": system_prompt
@@ -324,7 +258,7 @@ def transcribe_audio(audio_file_path: Path, system_prompt: str, session: Session
         request_data["content"] = audio_base64
     
     headers = {
-        "Authorization": f"Api-key {session.api_key}"
+        "Authorization": f"Api-key {DEFAULT_API_KEY}"
     }
     
     # Отправляем запрос
@@ -375,7 +309,7 @@ def transcribe_audio(audio_file_path: Path, system_prompt: str, session: Session
             logger.error(f"Ошибка при проверке статуса: {e}")
         
         if task_id:
-            update_task_timestamp(session.session_id, task_id)
+            update_task_timestamp(task_id)
         time.sleep(POLL_INTERVAL)
     
     # Получаем результаты
@@ -489,17 +423,16 @@ def json_to_html(text: str) -> str:
         return text
 
 
-async def process_video_task(session_id: str, task_id: str, video_path: Path, system_prompt: str):
+async def process_video_task(task_id: str, video_path: Path, system_prompt: str):
     """Фоновая задача обработки видео"""
     audio_path = None
     try:
-        session = sessions.get(session_id)
-        if not session:
-            logger.error(f"Сессия {session_id} не найдена при обработке задачи {task_id}")
+        if task_id not in tasks:
+            logger.error(f"Задача {task_id} не найдена при обработке")
             return
         
         # Обновляем статус: извлечение аудио
-        task = session.tasks[task_id]
+        task = tasks[task_id]
         task.status = "processing"
         task.stage = "extract_audio"
         task.updated_at = datetime.now()
@@ -517,7 +450,7 @@ async def process_video_task(session_id: str, task_id: str, video_path: Path, sy
         task.updated_at = datetime.now()
         
         # Транскрибируем (запускаем в отдельном потоке, чтобы не блокировать event loop)
-        result = await asyncio.to_thread(transcribe_audio, audio_path, system_prompt, session, task_id)
+        result = await asyncio.to_thread(transcribe_audio, audio_path, system_prompt, task_id)
         
         # Удаляем аудиофайл сразу после транскрибации
         audio_path.unlink(missing_ok=True)
@@ -536,8 +469,8 @@ async def process_video_task(session_id: str, task_id: str, video_path: Path, sy
             audio_path.unlink(missing_ok=True)
         logger.info(f"Временные файлы удалены после ошибки для задачи {task_id}")
         
-        if session_id in sessions and task_id in sessions[session_id].tasks:
-            task = sessions[session_id].tasks[task_id]
+        if task_id in tasks:
+            task = tasks[task_id]
             task.status = "error"
             task.error = str(e)
             task.updated_at = datetime.now()
@@ -549,156 +482,22 @@ async def root():
     return FileResponse("static/index.html")
 
 
-@app.post("/api/validate-keys")
-async def validate_api_keys(
-    api_key: str = Form(...),
-    folder_id: str = Form(...)
-):
-    """Валидация API ключей через тестовый запрос к Yandex Cloud"""
-    try:
-        # Проверяем формат ключей
-        if not api_key or len(api_key) < 20:
-            raise HTTPException(status_code=400, detail="Некорректный формат API ключа")
-        
-        if not folder_id or not folder_id.startswith('b1'):
-            raise HTTPException(status_code=400, detail="Некорректный формат Folder ID (должен начинаться с 'b1')")
-        
-        # Делаем тестовый запрос к Yandex Cloud API для проверки ключей
-        headers = {
-            "Authorization": f"Api-key {api_key}"
-        }
-        
-        # Используем простой endpoint для проверки авторизации
-        test_url = f"https://operation.api.cloud.yandex.net/operations"
-        
-        try:
-            response = requests.get(
-                test_url,
-                headers=headers,
-                verify=False,
-                timeout=10
-            )
-            
-            # Если получили 401 или 403 - ключ невалидный
-            if response.status_code in [401, 403]:
-                raise HTTPException(status_code=400, detail="API ключ недействителен или не имеет необходимых прав")
-            
-            # Любой другой ответ (включая 200, 400, 404) означает что ключ валиден
-            logger.info(f"API ключи валидированы успешно (status: {response.status_code})")
-            
-        except requests.exceptions.Timeout:
-            # Таймаут не означает невалидный ключ, просто не можем проверить
-            logger.warning("Таймаут при валидации ключей, пропускаем проверку")
-        except requests.exceptions.RequestException as e:
-            logger.warning(f"Ошибка при валидации ключей: {e}, пропускаем проверку")
-        
-        return {
-            "valid": True,
-            "message": "API ключи валидны"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Ошибка валидации ключей: {e}")
-        raise HTTPException(status_code=500, detail="Ошибка при валидации ключей")
-
-
-@app.post("/api/session")
-async def create_session(
-    response: Response,
-    api_key: Optional[str] = Form(None),
-    folder_id: Optional[str] = Form(None)
-):
-    """Создание новой сессии с опциональными API ключами"""
-    try:
-        session = get_or_create_session(None, api_key, folder_id)
-        
-        # Устанавливаем cookie с session_id
-        response.set_cookie(
-            key="session_id",
-            value=session.session_id,
-            httponly=True,
-            max_age=1800,  # 30 минут
-            samesite="lax"
-        )
-        
-        return {
-            "session_id": session.session_id,
-            "message": "Сессия создана",
-            "has_default_keys": bool(DEFAULT_API_KEY and DEFAULT_FOLDER_ID)
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/api/session/check")
-async def check_session(session_id: Optional[str] = Cookie(None)):
-    """Проверка наличия активной сессии"""
-    if not session_id or session_id not in sessions:
-        return {
-            "has_session": False,
-            "has_default_keys": bool(DEFAULT_API_KEY and DEFAULT_FOLDER_ID),
-            "requires_keys": not (DEFAULT_API_KEY and DEFAULT_FOLDER_ID)
-        }
-    
-    session = sessions[session_id]
-    session.last_activity = datetime.now()
-    
-    return {
-        "has_session": True,
-        "session_id": session_id,
-        "has_default_keys": bool(DEFAULT_API_KEY and DEFAULT_FOLDER_ID),
-        "requires_keys": False
-    }
-
-
-@app.post("/api/session/logout")
-async def logout_session(
-    response: Response,
-    session_id: Optional[str] = Cookie(None)
-):
-    """Удаление текущей сессии (выход)"""
-    if session_id and session_id in sessions:
-        del sessions[session_id]
-        logger.info(f"Сессия {session_id} удалена пользователем")
-    
-    # Удаляем cookie
-    response.delete_cookie(key="session_id")
-    
-    return {
-        "message": "Сессия удалена",
-        "requires_keys": not (DEFAULT_API_KEY and DEFAULT_FOLDER_ID)
-    }
 
 
 @app.post("/api/upload")
 async def upload_video(
     background_tasks: BackgroundTasks,
-    response: Response,
     file: UploadFile = File(...),
-    system_prompt: Optional[str] = Form(None),
-    api_key: Optional[str] = Form(None),
-    folder_id: Optional[str] = Form(None),
-    session_id: Optional[str] = Cookie(None)
+    system_prompt: Optional[str] = Form(None)
 ):
     """Загрузка видео файла для обработки"""
     
-    # Получаем или создаем сессию
-    try:
-        session = get_or_create_session(session_id, api_key, folder_id)
-        
-        # Обновляем cookie если сессия новая
-        if not session_id or session_id != session.session_id:
-            response.set_cookie(
-                key="session_id",
-                value=session.session_id,
-                httponly=True,
-                max_age=1800,
-                samesite="lax"
-            )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    # Проверяем наличие API ключей
+    if not DEFAULT_API_KEY or not DEFAULT_FOLDER_ID:
+        raise HTTPException(
+            status_code=400,
+            detail="API ключи не настроены. Установите YANDEX_API_KEY и YANDEX_FOLDER_ID в .env файле"
+        )
     
     # Валидация формата
     if not file.filename:
@@ -746,38 +545,32 @@ async def upload_video(
         video_path.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=f"Ошибка сохранения файла: {str(e)}")
     
-    # Создаем запись о задаче в сессии
+    # Создаем запись о задаче
     task = TaskStatus(
         task_id=task_id,
         status="pending",
         stage="upload",
         filename=file.filename
     )
-    session.tasks[task_id] = task
+    tasks[task_id] = task
     
     # Запускаем фоновую обработку
     prompt = system_prompt or SYSTEM_PROMPT
-    background_tasks.add_task(process_video_task, session.session_id, task_id, video_path, prompt)
+    background_tasks.add_task(process_video_task, task_id, video_path, prompt)
     
     return {
         "task_id": task_id,
-        "session_id": session.session_id,
         "message": "Файл загружен, обработка начата"
     }
 
 
 @app.get("/api/status/{task_id}")
-async def get_task_status(task_id: str, session_id: Optional[str] = Cookie(None)):
+async def get_task_status(task_id: str):
     """Получение статуса задачи"""
-    if not session_id:
-        raise HTTPException(status_code=401, detail="Сессия не найдена")
-    
-    session = get_session(session_id)
-    
-    if task_id not in session.tasks:
+    if task_id not in tasks:
         raise HTTPException(status_code=404, detail="Задача не найдена")
     
-    task = session.tasks[task_id]
+    task = tasks[task_id]
     
     return {
         "task_id": task.task_id,
@@ -792,17 +585,12 @@ async def get_task_status(task_id: str, session_id: Optional[str] = Cookie(None)
 
 
 @app.get("/api/result/{task_id}")
-async def get_task_result(task_id: str, session_id: Optional[str] = Cookie(None)):
+async def get_task_result(task_id: str):
     """Получение результата задачи (задача удаляется после получения результата)"""
-    if not session_id:
-        raise HTTPException(status_code=401, detail="Сессия не найдена")
-    
-    session = get_session(session_id)
-    
-    if task_id not in session.tasks:
+    if task_id not in tasks:
         raise HTTPException(status_code=404, detail="Задача не найдена")
     
-    task = session.tasks[task_id]
+    task = tasks[task_id]
     
     if task.status != "completed":
         raise HTTPException(status_code=400, detail="Задача еще не завершена")
@@ -812,9 +600,9 @@ async def get_task_result(task_id: str, session_id: Optional[str] = Cookie(None)
     
     result = task.result
     
-    # Удаляем задачу из сессии после получения результата
-    del session.tasks[task_id]
-    logger.info(f"Задача {task_id} удалена из сессии {session_id} после получения результата")
+    # Удаляем задачу после получения результата
+    del tasks[task_id]
+    logger.info(f"Задача {task_id} удалена после получения результата")
     
     return result
 
@@ -825,13 +613,6 @@ async def get_system_prompt():
     return {"prompt": SYSTEM_PROMPT}
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Запуск фоновых задач при старте приложения"""
-    # Проверяем наличие ffmpeg
-    if not check_ffmpeg():
-        logger.warning("ffmpeg не найден в системе!")
-        logger.warning("Установите ffmpeg для работы приложения")
 
 
 # Монтируем статические файлы
