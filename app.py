@@ -476,12 +476,20 @@ async def process_video_task(task_id: str, video_path: Path, system_prompt: str)
             task.updated_at = datetime.now()
 
 
+@app.get("/healthcheck")
+async def healthcheck():
+    return {
+        "status": "ok",
+        "ffmpeg": check_ffmpeg(),
+        "api_key_configured": bool(DEFAULT_API_KEY),
+        "folder_id_configured": bool(DEFAULT_FOLDER_ID),
+    }
+
+
 @app.get("/")
 async def root():
     """Главная страница"""
     return FileResponse("static/index.html")
-
-
 
 
 @app.post("/api/upload")
