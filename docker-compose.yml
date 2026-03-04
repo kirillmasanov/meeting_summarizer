@@ -7,9 +7,9 @@ services:
     ports:
       - "${SERVER_PORT:-8000}:8000"
     environment:
-      - API_KEY=${API_KEY}
-      - FOLDER_ID=${FOLDER_ID}
-      - LLM_MODEL=${LLM_MODEL:-qwen3-235b-a22b-fp8/latest}
+      - YANDEX_API_KEY=${YANDEX_API_KEY}
+      - YANDEX_FOLDER_ID=${YANDEX_FOLDER_ID}
+      - YANDEX_CLOUD_MODEL=${YANDEX_CLOUD_MODEL:-qwen3-235b-a22b-fp8/latest}
       - SERVER_PORT=8000
     volumes:
       # Монтируем директории для сохранения данных между перезапусками
@@ -17,7 +17,7 @@ services:
       - ./temp:/app/temp
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/prompt"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')\" || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

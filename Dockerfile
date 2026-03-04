@@ -20,7 +20,8 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 # Копируем остальные файлы приложения
-COPY app.py system_prompt.txt ./
+COPY app.py ./
+COPY prompts ./prompts
 COPY static ./static
 
 # Создаем директории для временных файлов
