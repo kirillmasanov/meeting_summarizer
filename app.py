@@ -65,13 +65,33 @@ if DEFAULT_API_KEY and DEFAULT_FOLDER_ID:
 else:
     logger.info("Дефолтные API ключи не найдены, потребуется ввод через UI")
 
-# Загружаем системный промпт из файла
-prompt_file = Path("system_prompt.txt")
-if not prompt_file.exists():
-    raise FileNotFoundError(f"Файл {prompt_file} не найден. Создайте файл с системным промптом.")
+# Предустановленные промпты: id -> (название, путь к файлу)
+PROMPTS_DIR = Path("prompts")
+PROMPT_FILES = {
+    "meeting": ("Встреча с клиентом", PROMPTS_DIR / "meeting.txt"),
+    "webinar": ("Обучающий вебинар", PROMPTS_DIR / "webinar.txt"),
+    "interview": ("Собеседование", PROMPTS_DIR / "interview.txt"),
+    "standup": ("Стендап", PROMPTS_DIR / "standup.txt"),
+    "sales": ("Продажная встреча", PROMPTS_DIR / "sales.txt"),
+}
 
-with open(prompt_file, 'r', encoding='utf-8') as f:
-    SYSTEM_PROMPT = f.read().strip()
+
+def _load_prompts() -> dict:
+    """Загружает все предустановленные промпты из файлов."""
+    result = {}
+    for prompt_id, (name, path) in PROMPT_FILES.items():
+        if not path.exists():
+            logger.warning(f"Файл промпта не найден: {path}")
+            continue
+        with open(path, "r", encoding="utf-8") as f:
+            result[prompt_id] = {"name": name, "text": f.read().strip()}
+    if not result:
+        raise FileNotFoundError("Не найден ни один файл системного промпта.")
+    return result
+
+
+PRESET_PROMPTS = _load_prompts()
+SYSTEM_PROMPT = PRESET_PROMPTS["meeting"]["text"]  # промпт по умолчанию
 
 # Lifespan context manager для startup/shutdown событий
 @asynccontextmanager
@@ -617,8 +637,20 @@ async def get_task_result(task_id: str):
 
 @app.get("/api/prompt")
 async def get_system_prompt():
-    """Получение текущего системного промпта"""
+    """Получение промпта по умолчанию (обратная совместимость)"""
     return {"prompt": SYSTEM_PROMPT}
+
+
+@app.get("/api/prompts")
+async def get_prompts():
+    """Список предустановленных промптов с текстом"""
+    return {
+        "prompts": [
+            {"id": pid, "name": data["name"], "text": data["text"]}
+            for pid, data in PRESET_PROMPTS.items()
+        ],
+        "default_id": "meeting",
+    }
 
 
 

@@ -5,6 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meeting Summarizer - Обработка видеозаписей встреч</title>
     <style>
+        :root {
+            --yc-color-base-background: #f5f5f6;
+            --yc-color-base-background-elevated: #ffffff;
+            --yc-color-base-generic-accent: #ffcc00;
+            --yc-color-base-generic-accent-hover: #f2c200;
+            --yc-color-base-simple-hover: #e6e6e6;
+            --yc-color-text-primary: #000000;
+            --yc-color-text-secondary: #6d7986;
+            --yc-color-text-hint: #8c8c8c;
+            --yc-color-line-generic: #e6e6e6;
+            --yc-color-line-generic-accent: #ffcc00;
+            --yc-color-brand-red: #fc3f1d;
+            --yc-color-brand-red-hover: #e63818;
+            --yc-header-bg: #1a1a1a;
+            --yc-header-text: #ffffff;
+            --yc-radius-m: 8px;
+            --yc-radius-l: 12px;
+            --yc-font: 'Yandex Sans Text', 'Yandex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,40 +32,68 @@
         }
 
         body {
-            font-family: 'Yandex Sans Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
+            font-family: var(--yc-font);
+            background: var(--yc-color-base-background);
             min-height: 100vh;
-            padding: 20px;
+            color: var(--yc-color-text-primary);
+        }
+
+        /* Шапка в стиле Yandex Cloud */
+        .top-bar {
+            background: var(--yc-header-bg);
+            padding: 0 24px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 1px 0 rgba(0,0,0,0.1);
+        }
+
+        .top-bar-brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--yc-header-text);
+            font-size: 15px;
+            font-weight: 500;
+            letter-spacing: -0.01em;
+        }
+
+        .top-bar-brand span {
+            color: var(--yc-color-text-hint);
+            font-weight: 400;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 960px;
             margin: 0 auto;
+            padding: 32px 24px;
         }
 
         .header {
-            text-align: center;
-            color: #000000;
-            margin-bottom: 40px;
+            margin-bottom: 32px;
         }
 
         .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
+            font-size: 28px;
             font-weight: 500;
+            letter-spacing: -0.02em;
+            color: var(--yc-color-text-primary);
+            margin-bottom: 8px;
         }
 
         .header p {
-            font-size: 1.1rem;
-            color: #666666;
+            font-size: 15px;
+            color: var(--yc-color-text-secondary);
+            line-height: 1.4;
         }
 
         .card {
-            background: white;
-            border-radius: 16px;
-            padding: 30px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
+            background: var(--yc-color-base-background-elevated);
+            border-radius: var(--yc-radius-l);
+            padding: 32px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            border: 1px solid var(--yc-color-line-generic);
+            margin-bottom: 24px;
         }
 
         .upload-section {
@@ -53,46 +101,82 @@
         }
 
         .drop-zone {
-            border: 2px dashed #d0d0d0;
-            border-radius: 8px;
-            padding: 60px 20px;
+            border: 2px dashed var(--yc-color-line-generic);
+            border-radius: var(--yc-radius-m);
+            padding: 48px 24px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            background: #ffffff;
+            transition: border-color 0.2s, background 0.2s;
+            background: var(--yc-color-base-background);
         }
 
         .drop-zone:hover, .drop-zone.drag-over {
-            background: #f9f9f9;
-            border-color: #0077FF;
+            background: var(--yc-color-base-simple-hover);
+            border-color: var(--yc-color-line-generic-accent);
         }
 
         .drop-zone-icon {
-            font-size: 4rem;
-            margin-bottom: 20px;
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.9;
         }
 
         .drop-zone-text {
-            font-size: 1.2rem;
-            color: #000000;
-            margin-bottom: 10px;
+            font-size: 16px;
             font-weight: 500;
+            color: var(--yc-color-text-primary);
+            margin-bottom: 8px;
         }
 
         .drop-zone-hint {
-            color: #666;
-            font-size: 0.9rem;
+            color: var(--yc-color-text-secondary);
+            font-size: 14px;
         }
 
         .file-input {
             display: none;
         }
 
+        .prompt-selector {
+            margin-top: 24px;
+            margin-bottom: 16px;
+        }
+
+        .prompt-selector-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .prompt-selector-btn {
+            padding: 10px 20px;
+            border: 1px solid var(--yc-color-line-generic);
+            border-radius: var(--yc-radius-m);
+            background: var(--yc-color-base-background-elevated);
+            color: var(--yc-color-text-primary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s, color 0.2s;
+            font-family: var(--yc-font);
+        }
+
+        .prompt-selector-btn:hover {
+            border-color: var(--yc-color-line-generic-accent);
+            background: var(--yc-color-base-background);
+        }
+
+        .prompt-selector-btn.active {
+            border-color: var(--yc-color-line-generic-accent);
+            background: rgba(255, 204, 0, 0.12);
+            color: var(--yc-color-text-primary);
+        }
+
         .prompt-section {
-            margin-top: 30px;
-            background: #f9f9f9;
-            border-radius: 8px;
-            padding: 20px;
-            border: 1px solid #e0e0e0;
+            margin-top: 16px;
+            background: var(--yc-color-base-background);
+            border-radius: var(--yc-radius-m);
+            padding: 16px 20px;
+            border: 1px solid var(--yc-color-line-generic);
         }
 
         .prompt-header {
@@ -102,11 +186,11 @@
             cursor: pointer;
             user-select: none;
             margin-bottom: 0;
-            transition: all 0.2s ease;
+            transition: color 0.2s;
         }
 
         .prompt-header:hover .prompt-title {
-            color: #0077FF;
+            color: var(--yc-color-text-primary);
         }
 
         .prompt-title {
@@ -114,15 +198,15 @@
             align-items: center;
             gap: 8px;
             font-weight: 500;
-            color: #666;
-            font-size: 0.95rem;
-            transition: color 0.2s ease;
+            color: var(--yc-color-text-secondary);
+            font-size: 14px;
+            transition: color 0.2s;
         }
 
         .prompt-toggle {
-            color: #999;
-            font-size: 1rem;
-            transition: transform 0.3s ease, color 0.2s ease;
+            color: var(--yc-color-text-hint);
+            font-size: 12px;
+            transition: transform 0.2s, color 0.2s;
         }
 
         .prompt-toggle.collapsed {
@@ -130,14 +214,14 @@
         }
 
         .prompt-header:hover .prompt-toggle {
-            color: #0077FF;
+            color: var(--yc-color-text-primary);
         }
 
         .prompt-content {
             max-height: 500px;
             overflow: hidden;
-            transition: max-height 0.3s ease, margin-top 0.3s ease;
-            margin-top: 15px;
+            transition: max-height 0.3s, margin-top 0.3s;
+            margin-top: 12px;
         }
 
         .prompt-content.collapsed {
@@ -147,72 +231,79 @@
 
         .prompt-textarea {
             width: 100%;
-            min-height: 180px;
-            padding: 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-family: 'Courier New', monospace;
+            min-height: 160px;
+            padding: 12px 14px;
+            border: 1px solid var(--yc-color-line-generic);
+            border-radius: var(--yc-radius-m);
+            font-size: 13px;
+            font-family: 'Monaco', 'Menlo', monospace;
             resize: vertical;
-            transition: all 0.3s;
+            transition: border-color 0.2s, box-shadow 0.2s;
             line-height: 1.5;
-            background: #ffffff;
+            background: var(--yc-color-base-background-elevated);
+            color: var(--yc-color-text-primary);
         }
 
         .prompt-textarea:focus {
             outline: none;
-            border-color: #0077FF;
-            box-shadow: 0 0 0 3px rgba(0, 119, 255, 0.1);
-        }
-
-        .prompt-actions {
-            margin-top: 10px;
-            display: flex;
-            gap: 10px;
+            border-color: var(--yc-color-line-generic-accent);
+            box-shadow: 0 0 0 2px rgba(255, 204, 0, 0.2);
         }
 
         .button-secondary {
-            background: #ffffff;
-            color: #666;
-            border: 1px solid #d0d0d0;
-            padding: 8px 20px;
-            border-radius: 6px;
-            font-size: 0.9rem;
+            background: var(--yc-color-base-background-elevated);
+            color: var(--yc-color-text-secondary);
+            border: 1px solid var(--yc-color-line-generic);
+            padding: 8px 16px;
+            border-radius: var(--yc-radius-m);
+            font-size: 14px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+            font-family: var(--yc-font);
         }
 
         .button-secondary:hover {
-            background: #f5f5f5;
-            border-color: #0077FF;
-            color: #0077FF;
+            background: var(--yc-color-base-simple-hover);
+            border-color: var(--yc-color-line-generic);
+            color: var(--yc-color-text-primary);
         }
 
         .button {
-            background: #FFCC00;
-            color: #000000;
+            background: var(--yc-color-base-generic-accent);
+            color: var(--yc-color-text-primary);
             border: none;
-            padding: 12px 32px;
-            border-radius: 6px;
-            font-size: 1rem;
+            padding: 10px 24px;
+            border-radius: var(--yc-radius-m);
+            font-size: 14px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: background 0.2s;
+            font-family: var(--yc-font);
         }
 
         .button:hover {
-            background: #FFB800;
+            background: var(--yc-color-base-generic-accent-hover);
         }
 
         .button:disabled {
-            opacity: 0.6;
+            opacity: 0.5;
             cursor: not-allowed;
+        }
+
+        .button-outline {
+            background: transparent;
+            color: var(--yc-color-text-primary);
+            border: 1px solid var(--yc-color-line-generic);
+        }
+
+        .button-outline:hover {
+            background: var(--yc-color-base-simple-hover);
         }
 
         .progress-section {
             display: none;
-            margin-top: 30px;
+            margin-top: 24px;
         }
 
         .progress-section.active {
@@ -220,33 +311,33 @@
         }
 
         .loading-spinner {
-            width: 60px;
-            height: 60px;
-            border: 6px solid #e0e0e0;
-            border-top-color: #FFCC00;
+            width: 48px;
+            height: 48px;
+            border: 3px solid var(--yc-color-line-generic);
+            border-top-color: var(--yc-color-base-generic-accent);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 30px auto;
+            animation: spin 0.8s linear infinite;
+            margin: 24px auto;
         }
 
         .progress-stage {
             text-align: center;
-            color: #000000;
-            font-size: 1.1rem;
+            color: var(--yc-color-text-primary);
+            font-size: 15px;
             font-weight: 500;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         .progress-stage-icon {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
+            font-size: 32px;
+            margin-bottom: 12px;
         }
-        
+
         .progress-details {
             text-align: center;
-            color: #666666;
-            font-size: 0.9rem;
-            margin-top: 10px;
+            color: var(--yc-color-text-secondary);
+            font-size: 14px;
+            margin-top: 8px;
         }
 
         .results-section {
@@ -258,12 +349,12 @@
         }
 
         .result-content {
-            padding: 25px;
-            background: #ffffff;
-            border-radius: 8px;
-            max-height: 600px;
+            padding: 20px;
+            background: var(--yc-color-base-background);
+            border-radius: var(--yc-radius-m);
+            max-height: 560px;
             overflow-y: auto;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--yc-color-line-generic);
         }
 
         .result-content.active {
@@ -272,31 +363,34 @@
 
         .result-text {
             white-space: pre-wrap;
-            line-height: 1.5;
-            color: #333;
-            font-size: 1.05rem;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: var(--yc-color-text-primary);
+            font-size: 14px;
+            font-family: var(--yc-font);
         }
 
         .actions {
             display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
+            gap: 10px;
+            margin-bottom: 16px;
             justify-content: flex-start;
+            flex-wrap: wrap;
         }
-        
+
         .actions .button {
-            padding: 10px 24px;
-            font-size: 0.95rem;
+            padding: 8px 20px;
+            font-size: 14px;
         }
 
         .error-message {
-            background: #fee;
-            color: #c33;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
+            background: #fff0f0;
+            color: var(--yc-color-brand-red);
+            padding: 12px 16px;
+            border-radius: var(--yc-radius-m);
+            margin-top: 16px;
             display: none;
+            font-size: 14px;
+            border: 1px solid rgba(252, 63, 29, 0.3);
         }
 
         .error-message.active {
@@ -304,42 +398,30 @@
         }
 
         @media (max-width: 768px) {
-            .header h1 {
-                font-size: 1.8rem;
-            }
-
-            .card {
-                padding: 20px;
-            }
-
-            .drop-zone {
-                padding: 40px 15px;
-            }
-
-            .actions {
-                flex-direction: column;
-            }
-
-            .button {
-                width: 100%;
-            }
+            .container { padding: 20px 16px; }
+            .header h1 { font-size: 22px; }
+            .card { padding: 20px; }
+            .drop-zone { padding: 32px 16px; }
+            .actions { flex-direction: column; }
+            .actions .button { width: 100%; }
         }
 
         .spinner {
             display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,.3);
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(0,0,0,0.15);
             border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
+            border-top-color: currentColor;
+            animation: spin 0.7s ease-in-out infinite;
+            vertical-align: middle;
+            margin-right: 6px;
         }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
 
-        /* Стили для tooltip подсказок */
         .help-icon {
             display: inline-flex;
             align-items: center;
@@ -347,44 +429,40 @@
             width: 18px;
             height: 18px;
             border-radius: 50%;
-            background: #e0e0e0;
-            color: #666;
+            background: var(--yc-color-line-generic);
+            color: var(--yc-color-text-secondary);
             font-size: 11px;
             font-weight: 600;
             cursor: help;
             margin-left: 6px;
             position: relative;
-            transition: all 0.2s ease;
-            border: 1px solid #d0d0d0;
+            transition: all 0.2s;
         }
 
         .help-icon:hover {
-            background: #d0d0d0;
-            color: #333;
-            border-color: #999;
-            transform: scale(1.05);
+            background: var(--yc-color-base-simple-hover);
+            color: var(--yc-color-text-primary);
         }
 
         .tooltip {
             position: absolute;
             bottom: 100%;
             left: 50%;
-            transform: translateX(-50%) translateY(-8px);
-            background: #2c2c2c;
-            color: #f5f5f5;
-            padding: 12px 16px;
-            border-radius: 8px;
+            transform: translateX(-50%) translateY(-6px);
+            background: var(--yc-header-bg);
+            color: var(--yc-header-text);
+            padding: 10px 14px;
+            border-radius: var(--yc-radius-m);
             font-size: 13px;
-            line-height: 1.5;
+            line-height: 1.4;
             white-space: nowrap;
             opacity: 0;
             visibility: hidden;
-            transition: all 0.3s ease;
+            transition: opacity 0.2s, visibility 0.2s, transform 0.2s;
             z-index: 1000;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             pointer-events: none;
-            margin-bottom: 8px;
-            border: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 6px;
         }
 
         .tooltip::after {
@@ -393,19 +471,16 @@
             top: 100%;
             left: 50%;
             transform: translateX(-50%);
-            border: 6px solid transparent;
-            border-top-color: #2c2c2c;
+            border: 5px solid transparent;
+            border-top-color: var(--yc-header-bg);
         }
 
-        .help-icon:hover .tooltip,
-        .tooltip:hover {
+        .help-icon:hover .tooltip {
             opacity: 1;
             visibility: visible;
-            transform: translateX(-50%) translateY(-12px);
-            pointer-events: auto;
+            transform: translateX(-50%) translateY(-10px);
         }
 
-        /* Добавляем невидимый мост между иконкой и tooltip */
         .help-icon::before {
             content: '';
             position: absolute;
@@ -413,55 +488,91 @@
             left: 50%;
             transform: translateX(-50%);
             width: 100%;
-            height: 20px;
+            height: 16px;
             z-index: 999;
         }
 
         .tooltip a {
-            color: #FFD54F;
+            color: var(--yc-color-base-generic-accent);
             text-decoration: none;
             font-weight: 500;
-            transition: color 0.2s ease;
         }
 
         .tooltip a:hover {
-            color: #FFC107;
             text-decoration: underline;
         }
 
         .field-label {
             display: flex;
             align-items: center;
-            margin-bottom: 5px;
+            margin-bottom: 6px;
             font-weight: 500;
-            color: #333;
+            color: var(--yc-color-text-primary);
         }
 
-        /* Стили для кнопки выхода */
         .logout-button {
-            background: #ffffff;
-            color: #ff4444;
-            border: 1px solid #ff4444;
-            padding: 12px 32px;
-            border-radius: 6px;
-            font-size: 1rem;
+            background: transparent;
+            color: var(--yc-color-brand-red);
+            border: 1px solid var(--yc-color-brand-red);
+            padding: 8px 20px;
+            border-radius: var(--yc-radius-m);
+            font-size: 14px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: background 0.2s, color 0.2s;
+            font-family: var(--yc-font);
             display: none;
         }
 
         .logout-button:hover {
-            background: #ff4444;
-            color: #ffffff;
+            background: var(--yc-color-brand-red);
+            color: #fff;
         }
 
         .logout-button.visible {
             display: inline-block;
         }
+
+        .footer {
+            border-top: 1px solid var(--yc-color-line-generic);
+            padding: 20px 24px;
+            margin-top: 24px;
+        }
+
+        .footer-inner {
+            max-width: 960px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--yc-color-text-hint);
+        }
+
+        .footer-sep {
+            color: var(--yc-color-line-generic);
+            user-select: none;
+        }
+
+        .footer a {
+            color: var(--yc-color-text-hint);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+
+        .footer a:hover {
+            color: var(--yc-color-text-primary);
+        }
     </style>
 </head>
 <body>
+
+    <header class="top-bar">
+        <div class="top-bar-brand">
+            Yandex Cloud <span>— Meeting Summarizer</span>
+        </div>
+    </header>
 
     <div class="container">
         <div class="header">
@@ -479,25 +590,24 @@
                 </div>
                 <input type="file" id="fileInput" class="file-input" accept=".mp4,.webm">
 
+                <div class="prompt-selector">
+                    <div class="prompt-selector-buttons" id="promptSelectorButtons"></div>
+                </div>
+
                 <div class="prompt-section">
                     <div class="prompt-header" id="promptHeader">
                         <div class="prompt-title">
                             <span>Настройки промпта</span>
                             <span style="color: #999; font-size: 0.85rem; font-weight: normal;">(опционально)</span>
                         </div>
-                        <span class="prompt-toggle collapsed" id="promptToggle">▼</span>
+                        <span class="prompt-toggle" id="promptToggle">▼</span>
                     </div>
-                    <div class="prompt-content collapsed" id="promptContent">
+                    <div class="prompt-content" id="promptContent">
                         <textarea
                             class="prompt-textarea"
                             id="systemPrompt"
                             placeholder="Загрузка промпта..."
                         ></textarea>
-                        <div class="prompt-actions">
-                            <button class="button-secondary" id="resetPromptButton">
-                                Сбросить к умолчанию
-                            </button>
-                        </div>
                     </div>
                 </div>
 
@@ -525,7 +635,7 @@
                         <button class="button" id="copyButton">
                             Копировать
                         </button>
-                        <button class="button" id="newTaskButton" style="background: #ffffff; color: #0077FF; border: 1px solid #0077FF;">
+                        <button class="button button-outline" id="newTaskButton">
                             Обработать новый файл
                         </button>
                     </div>
@@ -538,12 +648,22 @@
         </div>
     </div>
 
+    <footer class="footer">
+        <div class="footer-inner">
+            <a href="https://aistudio.yandex.ru/docs/ru/speechkit/overview.html" target="_blank" rel="noopener noreferrer">Документация Yandex SpeechKit</a>
+            <span class="footer-sep">·</span>
+            <a href="https://aistudio.yandex.ru/docs/ru/speechkit/pricing.html" target="_blank" rel="noopener noreferrer">Правила тарификации</a>
+        </div>
+    </footer>
+
     <script>
         // Глобальные переменные
         let currentTaskId = null;
         let selectedFile = null;
         let defaultPrompt = '';
         let currentPrompt = '';
+        let presetPrompts = [];
+        let selectedPromptId = 'meeting';
         
         // Определяем API_BASE в зависимости от того, где запущено приложение
         // Если в URL есть /meeting_summarizer/, значит работаем через nginx прокси
@@ -567,48 +687,65 @@
         const promptToggle = document.getElementById('promptToggle');
         const promptContent = document.getElementById('promptContent');
         const systemPrompt = document.getElementById('systemPrompt');
-        const resetPromptButton = document.getElementById('resetPromptButton');
+        const promptSelectorButtons = document.getElementById('promptSelectorButtons');
 
-
-        // Загрузка системного промпта при старте
-        async function loadSystemPrompt() {
+        // Загрузка списка промптов и отрисовка кнопок выбора
+        async function loadPrompts() {
             try {
-                const response = await fetch(`${API_BASE}/api/prompt`);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
+                const response = await fetch(`${API_BASE}/api/prompts`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const contentType = response.headers.get("content-type");
                 if (!contentType || !contentType.includes("application/json")) {
                     const text = await response.text();
                     console.error('Received non-JSON response:', text.substring(0, 200));
                     throw new Error('Сервер вернул некорректный ответ');
                 }
-                
                 const data = await response.json();
-                defaultPrompt = data.prompt;
-                currentPrompt = defaultPrompt;
-                systemPrompt.value = defaultPrompt;
+                presetPrompts = data.prompts || [];
+                const defaultId = data.default_id || (presetPrompts[0] && presetPrompts[0].id) || 'meeting';
+
+                promptSelectorButtons.innerHTML = '';
+                presetPrompts.forEach(p => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'prompt-selector-btn' + (p.id === defaultId ? ' active' : '');
+                    btn.textContent = p.name;
+                    btn.dataset.id = p.id;
+                    btn.addEventListener('click', () => selectPrompt(p.id));
+                    promptSelectorButtons.appendChild(btn);
+                });
+
+                selectedPromptId = defaultId;
+                const defaultPreset = presetPrompts.find(p => p.id === defaultId) || presetPrompts[0];
+                if (defaultPreset) {
+                    defaultPrompt = defaultPreset.text;
+                    currentPrompt = defaultPrompt;
+                    systemPrompt.value = defaultPrompt;
+                }
             } catch (error) {
-                console.error('Ошибка загрузки промпта:', error);
-                systemPrompt.placeholder = 'Ошибка загрузки промпта';
+                console.error('Ошибка загрузки промптов:', error);
+                systemPrompt.placeholder = 'Ошибка загрузки промптов';
             }
         }
 
-        // Загружаем промпт при старте
-        loadSystemPrompt();
+        function selectPrompt(promptId) {
+            const preset = presetPrompts.find(p => p.id === promptId);
+            if (!preset) return;
+            selectedPromptId = promptId;
+            defaultPrompt = preset.text;
+            currentPrompt = preset.text;
+            systemPrompt.value = preset.text;
+            promptSelectorButtons.querySelectorAll('.prompt-selector-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.id === promptId);
+            });
+        }
+
+        loadPrompts();
 
         // Переключение видимости промпта
         promptHeader.addEventListener('click', () => {
             promptContent.classList.toggle('collapsed');
             promptToggle.classList.toggle('collapsed');
-        });
-
-        // Сброс промпта к умолчанию
-        resetPromptButton.addEventListener('click', () => {
-            systemPrompt.value = defaultPrompt;
-            currentPrompt = defaultPrompt;
         });
 
         // Отслеживание изменений промпта
@@ -674,9 +811,8 @@
 
             const formData = new FormData();
             formData.append('file', selectedFile);
-            
-            // Добавляем промпт, если он был изменен
-            if (currentPrompt && currentPrompt !== defaultPrompt) {
+            // Всегда отправляем текущий промпт (выбранный тип или отредактированный вручную)
+            if (currentPrompt) {
                 formData.append('system_prompt', currentPrompt);
             }
 
