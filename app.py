@@ -72,7 +72,7 @@ PROMPT_FILES = {
     "webinar": ("Обучающий вебинар", PROMPTS_DIR / "webinar.txt"),
     "interview": ("Собеседование", PROMPTS_DIR / "interview.txt"),
     "standup": ("Стендап", PROMPTS_DIR / "standup.txt"),
-    "sales": ("Продажная встреча", PROMPTS_DIR / "sales.txt"),
+    "sales": ("Встреча по продажам", PROMPTS_DIR / "sales.txt"),
 }
 
 
