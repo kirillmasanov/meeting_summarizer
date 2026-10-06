@@ -50,7 +50,13 @@ load_dotenv()
 # Константы
 DEFAULT_API_KEY = os.getenv("YANDEX_API_KEY")
 DEFAULT_FOLDER_ID = os.getenv("YANDEX_FOLDER_ID")
-LLM_MODEL = os.getenv("YANDEX_CLOUD_MODEL", "qwen3-235b-a22b-fp8/latest")
+SUMMARY_MODELS = (
+    "deepseek-v4.1-flash",
+    "qwen3.6-35b-a3b",
+    "aliceai-llm-flash",
+    "yandexgpt-5.1",
+)
+LLM_MODEL = os.getenv("YANDEX_CLOUD_MODEL", "deepseek-v4.1-flash")
 SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))
 MAX_FILE_SIZE = 1024 * 1024 * 1024  # 1GB
 MAX_VIDEO_DURATION = 14400  # 4 часа в секундах
@@ -135,6 +141,7 @@ class TaskStatus:
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
     filename: Optional[str] = None
+    model: Optional[str] = None
 
 
 # Глобальное хранилище задач
@@ -228,8 +235,24 @@ def update_task_timestamp(task_id: str):
         tasks[task_id].updated_at = datetime.now()
 
 
-def transcribe_audio(audio_file_path: Path, system_prompt: str, task_id: str = None) -> dict:
+def validate_summary_model(model: str):
+    """Проверяем модель до сохранения файла и отправки аудио в облако."""
+    if model.split("/")[0] == "qwen3-235b-a22b-fp8":
+        raise RuntimeError(
+            "Поддержка модели qwen3-235b-a22b-fp8 завершилась 30 сентября 2026 года. "
+            "Выберите модель в интерфейсе или установите YANDEX_CLOUD_MODEL=deepseek-v4.1-flash "
+            "в .env и перезапустите приложение."
+        )
+    if model not in SUMMARY_MODELS:
+        raise RuntimeError("Неподдерживаемая модель. Доступны: " + ", ".join(SUMMARY_MODELS))
+
+
+def transcribe_audio(
+    audio_file_path: Path, system_prompt: str, task_id: str = None, model: Optional[str] = None
+) -> dict:
     """Транскрибирует аудио файл через Yandex SpeechKit API v3"""
+    selected_model = LLM_MODEL if model is None else model
+    validate_summary_model(selected_model)
     # Используем MP3 для всех файлов
     audio_type = "MP3"
     logger.info(f"Тип аудио для распознавания: {audio_type}")
@@ -259,7 +282,7 @@ def transcribe_audio(audio_file_path: Path, system_prompt: str, task_id: str = N
             "speakerLabeling": "SPEAKER_LABELING_DISABLED"
         },
         "summarization": {
-            "modelUri": f"gpt://{DEFAULT_FOLDER_ID}/{LLM_MODEL}",
+            "modelUri": f"gpt://{DEFAULT_FOLDER_ID}/{selected_model}",
             "properties": [
                 {
                     "instruction": system_prompt
@@ -309,6 +332,7 @@ def transcribe_audio(audio_file_path: Path, system_prompt: str, task_id: str = N
     operation_id = operation_data.get("id")
     if not operation_id:
         raise RuntimeError("Operation ID not found in response")
+    logger.info("SpeechKit: task_id=%s, operation_id=%s, model=%s", task_id, operation_id, selected_model)
     
     # Ожидаем завершения операции
     operation_url = f"https://operation.api.cloud.yandex.net/operations/{operation_id}"
@@ -346,49 +370,81 @@ def transcribe_audio(audio_file_path: Path, system_prompt: str, task_id: str = N
     if speech_response.status_code != 200:
         raise RuntimeError(f"Ошибка получения результатов: {speech_response.status_code}. {speech_response.text if speech_response.text else ''}")
     
-    # Парсим результаты
-    results = speech_response.text.strip().split('\n')
+    return parse_recognition_result(speech_response.text, operation_id)
+
+
+def parse_recognition_result(response_text: str, operation_id: str) -> dict:
+    """Проверяет поток NDJSON: HTTP 200 сам по себе не означает наличие резюме."""
     transcription_parts = []
     summary = None
-    
-    for line_num, line in enumerate(results):
+    event_counts = {}
+    status_codes = []
+
+    for line_num, line in enumerate(response_text.splitlines(), start=1):
+        if not line.strip():
+            continue
         try:
             data = json.loads(line)
-            result = data.get("result", {})
-            
-            # Извлекаем транскрипцию
-            if "finalRefinement" in result:
-                normalized = result["finalRefinement"].get("normalizedText", {})
-                alternatives = normalized.get("alternatives", [])
-                if alternatives:
-                    text = alternatives[0].get("text", "")
-                    if text:
-                        transcription_parts.append(text)
-            
-            # Извлекаем суммаризацию
-            if "summarization" in result:
-                summarization = result["summarization"]
-                results_list = summarization.get("results", [])
-                if results_list:
-                    raw_summary = results_list[0].get("response", "")
-                    if raw_summary and raw_summary.strip():
-                        summary = raw_summary.strip()
         except json.JSONDecodeError as e:
-            logger.error(f"Ошибка парсинга JSON в строке {line_num}: {e}")
-            continue
-    
-    full_transcription = " ".join(transcription_parts)
+            raise RuntimeError(
+                f"Некорректный JSON в ответе SpeechKit, строка {line_num}, operation_id={operation_id}."
+            ) from e
+        if not isinstance(data, dict):
+            raise RuntimeError(f"Некорректный формат ответа SpeechKit, operation_id={operation_id}.")
+        if "error" in data:
+            error = data["error"]
+            code = error.get("code") if isinstance(error, dict) else None
+            code = str(code) if str(code).isdigit() else "unknown"
+            # Не выводим тело ответа: оно может содержать текст встречи или секреты.
+            raise RuntimeError(f"Ошибка потока SpeechKit: code={code}, operation_id={operation_id}.")
 
-    # Конвертируем JSON в текст если нужно
-    if summary:
-        summary_html = json_to_html(summary)
-    else:
-        summary_html = None
-        logger.warning("Summary пустой, будет использовано 'Резюме не создано'")
-    
+        result = data.get("result", data)
+        if not isinstance(result, dict):
+            raise RuntimeError(f"Некорректный формат результата SpeechKit, operation_id={operation_id}.")
+        for event in ("final", "finalRefinement", "summarization", "statusCode"):
+            if event in result:
+                event_counts[event] = event_counts.get(event, 0) + 1
+        if "statusCode" in result:
+            code = result["statusCode"].get("codeType")
+            code = code if code in ("WORKING", "WARNING", "CLOSED") else "UNKNOWN"
+            if code not in status_codes:
+                status_codes.append(code)
+
+        if "finalRefinement" in result:
+            normalized = result["finalRefinement"].get("normalizedText", {})
+            alternatives = normalized.get("alternatives", [])
+            if alternatives:
+                text = alternatives[0].get("text", "")
+                if text:
+                    transcription_parts.append(text)
+
+        if "summarization" in result:
+            results_list = result["summarization"].get("results", [])
+            if results_list:
+                raw_summary = results_list[0].get("response", "")
+                if isinstance(raw_summary, str) and raw_summary.strip():
+                    summary = raw_summary.strip()
+
+    full_transcription = " ".join(transcription_parts)
+    logger.info(
+        "SpeechKit result: operation_id=%s, events=%s, status_codes=%s, transcription_chars=%d, summary_chars=%d",
+        operation_id, event_counts, status_codes, len(full_transcription), len(summary or ""),
+    )
+
+    if not summary:
+        raise RuntimeError(
+            "SpeechKit не вернул резюме. Проверьте выбранную модель, роль ai.languageModels.user "
+            "и квоты модели. "
+            f"operation_id={operation_id}; событий распознавания: "
+            f"{event_counts.get('final', 0) + event_counts.get('finalRefinement', 0)}."
+        )
+
+    summary_text = json_to_html(summary)
+    if not isinstance(summary_text, str) or not summary_text.strip():
+        raise RuntimeError(f"SpeechKit вернул пустой текст резюме, operation_id={operation_id}.")
     return {
         "transcription": full_transcription,
-        "summary": summary_html or "Резюме не создано"
+        "summary": summary_text.strip()
     }
 
 
@@ -438,12 +494,14 @@ def json_to_html(text: str) -> str:
         
         return format_value(data)
             
-    except (json.JSONDecodeError, KeyError, TypeError) as e:
-        logger.error(f"Ошибка парсинга JSON: {e}")
+    except (json.JSONDecodeError, KeyError, TypeError):
+        # Обычный текст — допустимый ответ модели, а не ошибка JSON.
         return text
 
 
-async def process_video_task(task_id: str, video_path: Path, system_prompt: str):
+async def process_video_task(
+    task_id: str, video_path: Path, system_prompt: str, model: Optional[str] = None
+):
     """Фоновая задача обработки видео"""
     audio_path = None
     try:
@@ -470,7 +528,7 @@ async def process_video_task(task_id: str, video_path: Path, system_prompt: str)
         task.updated_at = datetime.now()
         
         # Транскрибируем (запускаем в отдельном потоке, чтобы не блокировать event loop)
-        result = await asyncio.to_thread(transcribe_audio, audio_path, system_prompt, task_id)
+        result = await asyncio.to_thread(transcribe_audio, audio_path, system_prompt, task_id, model)
         
         # Удаляем аудиофайл сразу после транскрибации
         audio_path.unlink(missing_ok=True)
@@ -494,6 +552,7 @@ async def process_video_task(task_id: str, video_path: Path, system_prompt: str)
             task.status = "error"
             task.error = str(e)
             task.updated_at = datetime.now()
+        logger.error("Ошибка обработки задачи %s (%s)", task_id, type(e).__name__)
 
 
 @app.get("/api/health")
@@ -516,7 +575,8 @@ async def root():
 async def upload_video(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    system_prompt: Optional[str] = Form(None)
+    system_prompt: Optional[str] = Form(None),
+    model: Optional[str] = Form(None)
 ):
     """Загрузка видео файла для обработки"""
     
@@ -526,6 +586,11 @@ async def upload_video(
             status_code=400,
             detail="API ключи не настроены. Установите YANDEX_API_KEY и YANDEX_FOLDER_ID в .env файле"
         )
+    selected_model = LLM_MODEL if model is None else model
+    try:
+        validate_summary_model(selected_model)
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     
     # Валидация формата
     if not file.filename:
@@ -578,13 +643,14 @@ async def upload_video(
         task_id=task_id,
         status="pending",
         stage="upload",
-        filename=file.filename
+        filename=file.filename,
+        model=selected_model,
     )
     tasks[task_id] = task
     
     # Запускаем фоновую обработку
     prompt = system_prompt or SYSTEM_PROMPT
-    background_tasks.add_task(process_video_task, task_id, video_path, prompt)
+    background_tasks.add_task(process_video_task, task_id, video_path, prompt, selected_model)
     
     return {
         "task_id": task_id,
@@ -608,7 +674,8 @@ async def get_task_status(task_id: str):
         "error": task.error,
         "created_at": task.created_at.isoformat(),
         "updated_at": task.updated_at.isoformat(),
-        "filename": task.filename
+        "filename": task.filename,
+        "model": task.model,
     }
 
 

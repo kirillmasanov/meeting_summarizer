@@ -9,7 +9,7 @@ services:
     environment:
       - YANDEX_API_KEY=${YANDEX_API_KEY}
       - YANDEX_FOLDER_ID=${YANDEX_FOLDER_ID}
-      - YANDEX_CLOUD_MODEL=${YANDEX_CLOUD_MODEL:-qwen3-235b-a22b-fp8/latest}
+      - YANDEX_CLOUD_MODEL=${YANDEX_CLOUD_MODEL:-deepseek-v4.1-flash}
       - SERVER_PORT=8000
     volumes:
       # Монтируем директории для сохранения данных между перезапусками

@@ -54,7 +54,3 @@ results/
 # Backup files
 *.bak
 backup/
-
-# Test files
-test_*.py
-*_test.py

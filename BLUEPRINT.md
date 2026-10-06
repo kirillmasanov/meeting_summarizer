@@ -32,7 +32,7 @@ Meeting Summarizer — это веб-приложение для автомат�
 
 1. **Загрузка видео** → Сохранение файла на сервере, создание задачи
 2. **Извлечение аудио** → Конвертация в MP3 с помощью ffmpeg
-3. **Транскрибация и суммаризация** → Отправка аудио в Yandex SpeechKit API v3 с выбранным системным промптом (ключи из env)
+3. **Транскрибация и суммаризация** → Отправка аудио в Yandex SpeechKit API v3 с выбранными моделью и системным промптом (ключи из env); по умолчанию используется `deepseek-v4.1-flash`
 4. **Результат** → Отображение резюме в веб-интерфейсе; задача удаляется после получения результата
 
 ### Компоненты системы
@@ -241,7 +241,7 @@ echo "API Key: $API_KEY"
 cat > .env << EOF
 YANDEX_API_KEY=<ваш_api_ключ>
 YANDEX_FOLDER_ID=<ваш_folder_id>
-YANDEX_CLOUD_MODEL=qwen3-235b-a22b-fp8/latest
+YANDEX_CLOUD_MODEL=deepseek-v4.1-flash
 SERVER_PORT=8000
 EOF
 ```
@@ -256,7 +256,7 @@ API_KEY=$(yc iam api-key create --service-account-id $SA_ID --format json | jq -
 cat > .env << EOF
 YANDEX_API_KEY=$API_KEY
 YANDEX_FOLDER_ID=$FOLDER_ID
-YANDEX_CLOUD_MODEL=qwen3-235b-a22b-fp8/latest
+YANDEX_CLOUD_MODEL=deepseek-v4.1-flash
 SERVER_PORT=8000
 EOF
 
@@ -264,6 +264,9 @@ echo "Файл .env создан успешно"
 ```
 
 Ключи задаются только через `.env`; ввод через веб-интерфейс не поддерживается.
+Модель выбирается в веб-интерфейсе: `deepseek-v4.1-flash` (по умолчанию),
+`qwen3.6-35b-a3b`, `aliceai-llm-flash` или `yandexgpt-5.1`.
+`YANDEX_CLOUD_MODEL` используется только для API-запросов без поля `model`.
 
 ---
 

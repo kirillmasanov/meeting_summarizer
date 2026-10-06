@@ -141,6 +141,29 @@
             margin-bottom: 16px;
         }
 
+        .model-selector {
+            margin: 24px 0 16px;
+            text-align: left;
+        }
+
+        .model-select {
+            width: 100%;
+            max-width: 420px;
+            padding: 10px 12px;
+            border: 1px solid var(--yc-color-line-generic);
+            border-radius: var(--yc-radius-m);
+            background: var(--yc-color-base-background-elevated);
+            color: var(--yc-color-text-primary);
+            font: inherit;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .model-select:focus-visible {
+            outline: 2px solid var(--yc-color-line-generic-accent);
+            outline-offset: 2px;
+        }
+
         .prompt-selector-buttons {
             display: flex;
             flex-wrap: wrap;
@@ -590,6 +613,16 @@
                 </div>
                 <input type="file" id="fileInput" class="file-input" accept=".mp4,.webm">
 
+                <div class="model-selector">
+                    <label class="field-label" for="summaryModel">Модель для резюме</label>
+                    <select class="model-select" id="summaryModel" name="model">
+                        <option value="deepseek-v4.1-flash" selected>DeepSeek V4.1 Flash</option>
+                        <option value="qwen3.6-35b-a3b">Qwen3.6 35B A3B</option>
+                        <option value="aliceai-llm-flash">Alice AI LLM Flash</option>
+                        <option value="yandexgpt-5.1">YandexGPT 5.1</option>
+                    </select>
+                </div>
+
                 <div class="prompt-selector">
                     <div class="prompt-selector-buttons" id="promptSelectorButtons"></div>
                 </div>
@@ -687,6 +720,7 @@
         const promptToggle = document.getElementById('promptToggle');
         const promptContent = document.getElementById('promptContent');
         const systemPrompt = document.getElementById('systemPrompt');
+        const summaryModel = document.getElementById('summaryModel');
         const promptSelectorButtons = document.getElementById('promptSelectorButtons');
 
         // Загрузка списка промптов и отрисовка кнопок выбора
@@ -811,6 +845,7 @@
 
             const formData = new FormData();
             formData.append('file', selectedFile);
+            formData.append('model', summaryModel.value);
             // Всегда отправляем текущий промпт (выбранный тип или отредактированный вручную)
             if (currentPrompt) {
                 formData.append('system_prompt', currentPrompt);
@@ -868,6 +903,9 @@
             try {
                 const response = await fetch(`${API_BASE}/api/status/${currentTaskId}`);
                 const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || `Ошибка сервера (${response.status})`);
+                }
 
                 updateProgress(data);
 
@@ -925,9 +963,15 @@
             try {
                 const response = await fetch(`${API_BASE}/api/result/${currentTaskId}`);
                 const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || `Ошибка сервера (${response.status})`);
+                }
+                if (typeof data.summary !== 'string' || !data.summary.trim()) {
+                    throw new Error('Сервер вернул пустое резюме');
+                }
 
                 // Отображаем резюме как простой текст
-                summaryText.textContent = data.summary || 'Резюме не создано';
+                summaryText.textContent = data.summary;
 
                 progressSection.classList.remove('active');
                 resultsSection.classList.add('active');
